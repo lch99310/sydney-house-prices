@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useMemo } from 'react'
-import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet'
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react'
+import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
-import { formatPrice } from '../utils/formatters'
+import { formatPrice, formatShortDate } from '../utils/formatters'
 import 'leaflet/dist/leaflet.css'
 import './MapView.css'
 
@@ -13,18 +13,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
+const TYPE_COLORS = {
+  House: '#4f6ef7',
+  Unit: '#34d399',
+  Townhouse: '#fbbf24',
+  Land: '#a78bfa',
+}
+
 // Color scale: green (low) → yellow → red (high)
 function priceToColor(price, min, max) {
   if (!price || min === max) return '#4f6ef7'
   const ratio = Math.min(1, Math.max(0, (price - min) / (max - min)))
   if (ratio < 0.5) {
-    // green → yellow
     const r = Math.round(52 + (251 - 52) * ratio * 2)
     const g = Math.round(211 + (191 - 211) * ratio * 2)
     const b = Math.round(153 + (36 - 153) * ratio * 2)
     return `rgb(${r},${g},${b})`
   } else {
-    // yellow → red
     const t = (ratio - 0.5) * 2
     const r = Math.round(251 + (248 - 251) * t)
     const g = Math.round(191 + (113 - 191) * t)
@@ -33,32 +38,152 @@ function priceToColor(price, min, max) {
   }
 }
 
-// Component to recenter map
-function MapController({ selectedSuburb, suburbCentroids }) {
+// Component to recenter map and track zoom level
+function MapController({ selectedSuburb, suburbCentroids, onZoomChange, onSearchLocation }) {
   const map = useMap()
+
+  useMapEvents({
+    zoomend() {
+      onZoomChange(map.getZoom())
+    },
+  })
+
   useEffect(() => {
     if (selectedSuburb && suburbCentroids[selectedSuburb]) {
       const [lat, lng] = suburbCentroids[selectedSuburb]
       map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true })
     }
   }, [selectedSuburb, suburbCentroids, map])
+
+  useEffect(() => {
+    if (onSearchLocation) {
+      map.__flyToSearchLocation = (lat, lng, zoom) => {
+        map.setView([lat, lng], zoom || 16, { animate: true })
+      }
+    }
+  }, [map, onSearchLocation])
+
   return null
+}
+
+// Search bar component
+function SearchBar({ onSearch, mapRef }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const searchTimeout = useRef(null)
+
+  const handleInputChange = useCallback((e) => {
+    const value = e.target.value
+    setQuery(value)
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current)
+
+    if (value.length < 3) {
+      setResults([])
+      setShowResults(false)
+      return
+    }
+
+    setIsSearching(true)
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        // Use Nominatim (OpenStreetMap) for geocoding - free, no API key needed
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value + ', Sydney, NSW, Australia')}&limit=5&addressdetails=1`
+        )
+        const data = await response.json()
+        setResults(data.map(r => ({
+          displayName: r.display_name,
+          lat: parseFloat(r.lat),
+          lng: parseFloat(r.lon),
+          type: r.type,
+          suburb: r.address?.suburb || r.address?.city_district || r.address?.town || '',
+        })))
+        setShowResults(true)
+      } catch {
+        setResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    }, 400)
+  }, [])
+
+  const handleSelect = useCallback((result) => {
+    setQuery(result.displayName.split(',').slice(0, 2).join(','))
+    setShowResults(false)
+    onSearch(result)
+  }, [onSearch])
+
+  const handleClear = useCallback(() => {
+    setQuery('')
+    setResults([])
+    setShowResults(false)
+  }, [])
+
+  return (
+    <div className="map-search-bar">
+      <div className="search-input-wrapper">
+        <span className="search-icon">🔍</span>
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Search address or suburb..."
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => results.length > 0 && setShowResults(true)}
+          onBlur={() => setTimeout(() => setShowResults(false), 200)}
+        />
+        {query && (
+          <button className="search-clear-btn" onClick={handleClear}>✕</button>
+        )}
+        {isSearching && <span className="search-spinner" />}
+      </div>
+
+      {showResults && results.length > 0 && (
+        <div className="search-results">
+          {results.map((r, i) => (
+            <button
+              key={i}
+              className="search-result-item"
+              onMouseDown={() => handleSelect(r)}
+            >
+              <span className="result-name">
+                {r.displayName.split(',').slice(0, 3).join(',')}
+              </span>
+              {r.suburb && <span className="result-suburb">{r.suburb}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function MapView({ properties, suburbs, filters, selectedSuburb, onSuburbSelect }) {
   const geoJsonRef = useRef(null)
+  const mapContainerRef = useRef(null)
+  const [zoomLevel, setZoomLevel] = useState(11)
+
+  // Filter properties based on current filters
+  const filteredProperties = useMemo(() => {
+    const cutoff = new Date()
+    cutoff.setMonth(cutoff.getMonth() - filters.months)
+
+    return properties.filter(p => {
+      if (!filters.types.includes(p.type)) return false
+      if (new Date(p.date) < cutoff) return false
+      if (p.price < filters.minPrice || p.price > filters.maxPrice) return false
+      return true
+    })
+  }, [properties, filters])
 
   // Compute median price per suburb from filtered properties
   const suburbStats = useMemo(() => {
-    const cutoff = new Date()
-    cutoff.setMonth(cutoff.getMonth() - filters.months)
     const stats = {}
 
-    properties.forEach(p => {
-      if (!filters.types.includes(p.type)) return
-      if (new Date(p.date) < cutoff) return
-      if (p.price < filters.minPrice || p.price > filters.maxPrice) return
-
+    filteredProperties.forEach(p => {
       const sub = p.suburb.toUpperCase()
       if (!stats[sub]) stats[sub] = { prices: [], count: 0 }
       stats[sub].prices.push(p.price)
@@ -74,7 +199,7 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
     })
 
     return stats
-  }, [properties, filters])
+  }, [filteredProperties])
 
   // Extract suburb centroids from GeoJSON for map controller
   const suburbCentroids = useMemo(() => {
@@ -84,10 +209,8 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
       const name = (f.properties?.LOC_NAME || f.properties?.suburb || '').toUpperCase()
       if (!name) return
       try {
-        // Use centroid approximation from bbox
         const coords = f.geometry?.coordinates
         if (!coords) return
-        // Flatten all coordinates to find center
         const allCoords = []
         const flatten = (arr) => {
           if (typeof arr[0] === 'number') allCoords.push(arr)
@@ -167,6 +290,25 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
     })
   }
 
+  // Show property markers when zoomed in enough (zoom >= 14)
+  const showPropertyMarkers = zoomLevel >= 14
+
+  // Handle search result selection
+  const handleSearchResult = useCallback((result) => {
+    // Use global fly-to function set by SearchFlyTo component
+    if (window.__sydneyMapFlyTo) {
+      window.__sydneyMapFlyTo(result.lat, result.lng, 16)
+    }
+
+    // Also try to select suburb if we can match it
+    if (result.suburb) {
+      const suburbKey = result.suburb.toUpperCase()
+      if (suburbStats[suburbKey]) {
+        onSuburbSelect(suburbKey)
+      }
+    }
+  }, [suburbStats, onSuburbSelect])
+
   // Legend labels
   const legendItems = [
     { color: priceToColor(minPrice, minPrice, maxPrice), label: formatPrice(minPrice) },
@@ -175,12 +317,17 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
   ]
 
   return (
-    <div className="map-container">
+    <div className="map-container" ref={mapContainerRef}>
+      {/* Search bar */}
+      <SearchBar onSearch={handleSearchResult} />
+
       <MapContainer
         center={[-33.865, 151.209]}
         zoom={11}
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
+        maxZoom={19}
+        minZoom={10}
       >
         {/* Dark tile layer */}
         <TileLayer
@@ -201,8 +348,72 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
           />
         )}
 
-        <MapController selectedSuburb={selectedSuburb} suburbCentroids={suburbCentroids} />
+        {/* Property markers - shown when zoomed in */}
+        {showPropertyMarkers && filteredProperties.map(p => {
+          if (!p.lat || !p.lng) return null
+          const suburbSlug = p.suburb.toLowerCase().replace(/ /g, '-')
+          const domainUrl = `https://www.domain.com.au/sold-listings/${suburbSlug}-nsw-${p.postcode || ''}/`
+          const realestateUrl = `https://www.realestate.com.au/sold/in-${suburbSlug},+nsw+${p.postcode || ''}/`
+
+          return (
+            <CircleMarker
+              key={p.id}
+              center={[p.lat, p.lng]}
+              radius={6}
+              fillColor={TYPE_COLORS[p.type] || '#4f6ef7'}
+              fillOpacity={0.8}
+              stroke={true}
+              color={TYPE_COLORS[p.type] || '#4f6ef7'}
+              weight={1.5}
+              opacity={0.5}
+            >
+              <Popup className="property-popup" maxWidth={280}>
+                <div className="popup-content">
+                  <div className="popup-type" style={{ color: TYPE_COLORS[p.type] }}>
+                    {p.type}
+                  </div>
+                  <div className="popup-address">{p.address}</div>
+                  <div className="popup-suburb">{p.suburb}</div>
+                  <div className="popup-price">{formatPrice(p.price)}</div>
+                  <div className="popup-date">{formatShortDate(p.date)}</div>
+                  {(p.bedrooms || p.area) && (
+                    <div className="popup-details">
+                      {p.bedrooms && <span>{p.bedrooms} bed</span>}
+                      {p.bathrooms && <span>{p.bathrooms} bath</span>}
+                      {p.area && <span>{p.area.toLocaleString()} m²</span>}
+                    </div>
+                  )}
+                  <div className="popup-links">
+                    <a href={domainUrl} target="_blank" rel="noopener noreferrer" className="popup-link popup-link-domain">
+                      Domain.com.au ↗
+                    </a>
+                    <a href={realestateUrl} target="_blank" rel="noopener noreferrer" className="popup-link popup-link-realestate">
+                      realestate.com.au ↗
+                    </a>
+                  </div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          )
+        })}
+
+        <MapController
+          selectedSuburb={selectedSuburb}
+          suburbCentroids={suburbCentroids}
+          onZoomChange={setZoomLevel}
+          onSearchLocation={handleSearchResult}
+        />
+
+        {/* Map fly-to helper for search */}
+        <SearchFlyTo />
       </MapContainer>
+
+      {/* Zoom hint when not zoomed in enough */}
+      {!showPropertyMarkers && (
+        <div className="zoom-hint">
+          Zoom in to see individual properties
+        </div>
+      )}
 
       {/* Color legend */}
       <div className="map-legend">
@@ -233,4 +444,28 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
       </div>
     </div>
   )
+}
+
+// Helper component that provides search fly-to via a global function
+function SearchFlyTo() {
+  const map = useMap()
+
+  useEffect(() => {
+    // Store map reference on the container element for search to access
+    if (map._container) {
+      map._container._leaflet_map = map
+    }
+  }, [map])
+
+  // Also expose a global function for the search bar
+  useEffect(() => {
+    window.__sydneyMapFlyTo = (lat, lng, zoom) => {
+      map.setView([lat, lng], zoom || 16, { animate: true })
+    }
+    return () => {
+      delete window.__sydneyMapFlyTo
+    }
+  }, [map])
+
+  return null
 }
