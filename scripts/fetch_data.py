@@ -6,7 +6,8 @@ Downloads bulk property sales data from the NSW Valuer General's office,
 filters for Sydney metropolitan area, and outputs JSON for the web app.
 
 Data source:
-  https://www.valuergeneral.nsw.gov.au/land_values/land_value_summaries/property-sales-information
+  https://valuation.property.nsw.gov.au/embed/propertySalesInformation
+  (NSW Valuer General - Official NSW Government property sales data)
 
 Run:
   pip install -r requirements.txt

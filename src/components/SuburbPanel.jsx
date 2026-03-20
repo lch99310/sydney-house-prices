@@ -39,6 +39,9 @@ export default function SuburbPanel({ suburb, properties, filters, onClose, onFi
     .map(w => w.charAt(0) + w.slice(1).toLowerCase())
     .join(' ')
 
+  // Get postcode from first property
+  const suburbPostcode = properties.length > 0 ? properties[0].postcode : ''
+
   return (
     <div className="suburb-panel">
       {/* Panel header */}
@@ -88,17 +91,29 @@ export default function SuburbPanel({ suburb, properties, filters, onClose, onFi
           </div>
         )}
 
-        {/* Domain.com.au search link */}
-        <a
-          href={`https://www.domain.com.au/sale/${displayName.toLowerCase().replace(/ /g, '-')}-nsw/`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="domain-link"
-        >
-          <span>🔗</span>
-          Search listings on Domain.com.au
-          <span className="ext-icon">↗</span>
-        </a>
+        {/* Property search links */}
+        <div className="search-links">
+          <a
+            href={`https://www.domain.com.au/sold-listings/${displayName.toLowerCase().replace(/ /g, '-')}-nsw-${suburbPostcode}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="domain-link"
+          >
+            <span>🔗</span>
+            Search on Domain.com.au
+            <span className="ext-icon">↗</span>
+          </a>
+          <a
+            href={`https://www.realestate.com.au/sold/in-${displayName.toLowerCase().replace(/ /g, '-')},+nsw+${suburbPostcode}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="domain-link realestate-link"
+          >
+            <span>🔗</span>
+            Search on realestate.com.au
+            <span className="ext-icon">↗</span>
+          </a>
+        </div>
       </div>
 
       {/* Tabs */}

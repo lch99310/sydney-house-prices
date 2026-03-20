@@ -71,8 +71,10 @@ export default function PropertyList({ properties, suburb }) {
 
       <div className="prop-items">
         {paged.map((p, i) => {
-          const domainSearch = `https://www.domain.com.au/sale/${suburb.toLowerCase().replace(/ /g, '-')}-nsw/?address=${encodeURIComponent(p.address + ', ' + suburb + ' NSW')}`
-          const domainAddress = `https://www.domain.com.au/find-address?address=${encodeURIComponent(p.address + ', ' + suburb + ' NSW 2000')}`
+          const addressSlug = (p.address + ' ' + suburb + ' NSW ' + (p.postcode || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '')
+          const suburbSlug = suburb.toLowerCase().replace(/ /g, '-')
+          const domainSoldUrl = `https://www.domain.com.au/sold-listings/${suburbSlug}-nsw-${p.postcode || ''}/`
+          const realestateUrl = `https://www.realestate.com.au/sold/in-${suburbSlug},+nsw+${p.postcode || ''}/`
 
           return (
             <div key={p.id || i} className="prop-card">
@@ -96,14 +98,25 @@ export default function PropertyList({ properties, suburb }) {
                 </div>
               )}
 
-              <a
-                href={domainSearch}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="prop-domain-link"
-              >
-                View on Domain.com.au ↗
-              </a>
+              <div className="prop-links">
+                <a
+                  href={domainSoldUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="prop-domain-link"
+                >
+                  Domain.com.au ↗
+                </a>
+                <span className="prop-link-sep">·</span>
+                <a
+                  href={realestateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="prop-domain-link prop-realestate-link"
+                >
+                  realestate.com.au ↗
+                </a>
+              </div>
             </div>
           )
         })}

@@ -131,7 +131,13 @@
   font-weight: 600;
 }
 
-/* Domain link */
+/* Search links */
+.search-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .domain-link {
   display: flex;
   align-items: center;
@@ -149,6 +155,16 @@
 .domain-link:hover {
   background: rgba(79, 110, 247, 0.15);
   border-color: var(--accent);
+}
+
+.realestate-link {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: var(--green);
+}
+.realestate-link:hover {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: var(--green);
 }
 .ext-icon {
   margin-left: auto;

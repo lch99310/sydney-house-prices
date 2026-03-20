@@ -1,21 +1,25 @@
+# Build & Deploy to GitHub Pages
+#
+# SETUP REQUIRED: Before this workflow can run successfully, you must:
+# 1. Go to https://github.com/<owner>/sydney-house-prices/settings/pages
+# 2. Under "Build and deployment" → Source, select "GitHub Actions"
+# 3. This creates the required "github-pages" environment automatically
+#
+# Without this setup, deploy-pages@v4 will fail with HTTP 404 "Not Found".
+
 name: Build & Deploy to GitHub Pages
 
 on:
-  # Deploy whenever main branch is updated (including data updates)
   push:
     branches:
       - main
-
-  # Allow manual deployment
   workflow_dispatch:
 
-# Required for GitHub Pages deployment
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Only allow one deployment at a time
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -42,6 +46,9 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
