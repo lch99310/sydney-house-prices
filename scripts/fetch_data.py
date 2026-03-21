@@ -156,10 +156,15 @@ def classify_property_type(strata_lot, zone_code, primary_purpose, nature_of_pro
 
 
 # ── NSW VG PSI data columns ──────────────────────────────────────────────────
-# PSI DAT file format: semicolon-delimited, 25 columns
+# PSI DAT file format: semicolon-delimited, multi-record type
+#   A = district header, B = sale record, C = cross-reference, D = additional info
+# Only B records contain the sale data we need.
 # See: https://www.valuergeneral.nsw.gov.au/land_values/where_can_i_learn_more/
-VG_COLUMNS = [
-    "district_code", "source", "valuation_number", "property_id",
+#
+# Real example B record (semicolon-delimited):
+# B;144;1595525;1;20260316 01:01;;;5;JACKSON CL;MENAI;2234;642.1;M;20251217;20260311;2500000;C4;R;RESIDENCE;;CRE;;;AV936780;
+VG_B_COLUMNS = [
+    "record_type", "district_code", "property_id",
     "sale_counter", "download_date", "property_name", "unit_number",
     "street_number", "street_name", "locality", "post_code",
     "area", "area_type", "contract_date", "settlement_date",
@@ -169,11 +174,17 @@ VG_COLUMNS = [
 ]
 
 def parse_vg_line(line, delimiter=";"):
-    """Parse a single line from a NSW VG DAT file."""
-    parts = line.strip().split(delimiter)
-    if len(parts) < len(VG_COLUMNS):
+    """Parse a B-record line from a NSW VG DAT file. Returns None for non-B records."""
+    stripped = line.strip()
+    if not stripped:
         return None
-    return dict(zip(VG_COLUMNS, parts))
+    # Only parse B (sale) records; skip A (header), C (cross-ref), D (detail)
+    if not stripped.startswith("B;"):
+        return None
+    parts = stripped.split(delimiter)
+    if len(parts) < len(VG_B_COLUMNS):
+        return None
+    return dict(zip(VG_B_COLUMNS, parts))
 
 def parse_date(date_str):
     """Parse dates in YYYYMMDD or DD/MM/YYYY format."""
@@ -331,11 +342,15 @@ def get_centroid_with_jitter(suburb_name):
 # ── Download NSW VG PSI data ─────────────────────────────────────────────────
 PSI_BASE_URL = "https://www.valuergeneral.nsw.gov.au/_psi"
 
-def get_weekly_urls(weeks_back=4):
+def get_weekly_urls(weeks_back=4, from_start_of_year=False):
     """
     Return list of (label, url) for recent weekly ZIPs.
     NSW VG publishes weekly data on Mondays.
     URL format: https://www.valuergeneral.nsw.gov.au/_psi/weekly/YYYYMMDD.zip
+
+    If from_start_of_year=True, generate URLs from the first Monday of the
+    current year up to now (used in full mode to cover the current year which
+    has no yearly file yet).
     """
     urls = []
     today = date.today()
@@ -344,11 +359,25 @@ def get_weekly_urls(weeks_back=4):
     days_since_monday = today.weekday()  # 0=Mon, 6=Sun
     last_monday = today - timedelta(days=days_since_monday)
 
-    for i in range(weeks_back):
-        target = last_monday - timedelta(weeks=i)
-        date_str = target.strftime("%Y%m%d")
-        url = f"{PSI_BASE_URL}/weekly/{date_str}.zip"
-        urls.append((f"weekly-{date_str}", url))
+    if from_start_of_year:
+        # Generate all weekly URLs from the first Monday of the current year
+        # NSW VG weekly files typically start on the first Monday of January
+        jan1 = date(today.year, 1, 1)
+        first_monday = jan1 + timedelta(days=(7 - jan1.weekday()) % 7)
+        if first_monday > jan1 + timedelta(days=6):
+            first_monday = jan1  # Jan 1 is already a Monday
+        target = first_monday
+        while target <= last_monday:
+            date_str = target.strftime("%Y%m%d")
+            url = f"{PSI_BASE_URL}/weekly/{date_str}.zip"
+            urls.append((f"weekly-{date_str}", url))
+            target += timedelta(weeks=1)
+    else:
+        for i in range(weeks_back):
+            target = last_monday - timedelta(weeks=i)
+            date_str = target.strftime("%Y%m%d")
+            url = f"{PSI_BASE_URL}/weekly/{date_str}.zip"
+            urls.append((f"weekly-{date_str}", url))
 
     return urls
 
@@ -358,11 +387,14 @@ def get_yearly_urls():
     Return list of (label, url) for yearly data ZIPs.
     Used for initial backfill of historical data (past 2 years).
     URL format: https://www.valuergeneral.nsw.gov.au/_psi/yearly/YYYY.zip
+
+    Only fetches COMPLETED years — the current year has no yearly file
+    (data is only available as weekly files until the year ends).
     """
     current_year = date.today().year
     urls = []
-    # Current year and previous year to cover 2 years
-    for year in [current_year - 1, current_year]:
+    # Only previous years (current year is not yet complete)
+    for year in [current_year - 2, current_year - 1]:
         url = f"{PSI_BASE_URL}/yearly/{year}.zip"
         urls.append((f"yearly-{year}", url))
     return urls
@@ -392,15 +424,8 @@ def download_and_parse_zip(label, url, cutoff_date):
                 with zf.open(dat_name) as f:
                     lines = f.read().decode("latin-1", errors="replace").splitlines()
 
-                # Skip header line if present (check if first char is not a digit)
-                start = 0
-                if lines and lines[0]:
-                    first_char = lines[0].strip()[0] if lines[0].strip() else ""
-                    if not first_char.isdigit():
-                        start = 1
-
                 parsed = 0
-                for line in lines[start:]:
+                for line in lines:
                     row = parse_vg_line(line)
                     if not row:
                         continue
@@ -586,13 +611,14 @@ def main():
         # ── Full mode: yearly + weekly backfill ──────────────────────────
         log.info("=== Full data fetch mode ===")
 
-        # First download yearly data for backfill
+        # First download yearly data for completed years
         for label, url in get_yearly_urls():
             props = download_and_parse_zip(label, url, cutoff)
             all_properties.extend(props)
 
-        # Then download recent weekly data (may have newer records)
-        for label, url in get_weekly_urls(weeks_back=args.weeks):
+        # Then download ALL weekly data for the current year
+        # (no yearly file exists for the current year)
+        for label, url in get_weekly_urls(from_start_of_year=True):
             props = download_and_parse_zip(label, url, cutoff)
             all_properties.extend(props)
 
