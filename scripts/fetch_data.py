@@ -279,114 +279,160 @@ def load_centroids_from_geojson():
 
 
 # Fallback centroids for suburbs not in GeoJSON
+# Centroids for coastal/peninsula suburbs are shifted inland to prevent
+# jittered points from landing in the water.
 FALLBACK_CENTROIDS = {
-    "ULTIMO": (-33.8792, 151.1970), "PYRMONT": (-33.8694, 151.1925),
-    "SURRY HILLS": (-33.8876, 151.2115), "NEWTOWN": (-33.8979, 151.1793),
-    "GLEBE": (-33.8810, 151.1852), "LEICHHARDT": (-33.8839, 151.1567),
-    "BALMAIN": (-33.8587, 151.1800), "ROZELLE": (-33.8622, 151.1720),
-    "DARLINGHURST": (-33.8764, 151.2178), "PADDINGTON": (-33.8848, 151.2264),
-    "BONDI": (-33.8908, 151.2740), "BONDI BEACH": (-33.8917, 151.2770),
-    "COOGEE": (-33.9215, 151.2589), "RANDWICK": (-33.9147, 151.2427),
+    # ── CBD & Inner City ──
+    "SYDNEY": (-33.8688, 151.2093), "BARANGAROO": (-33.8615, 151.2015),
+    "MILLERS POINT": (-33.8580, 151.2040), "THE ROCKS": (-33.8590, 151.2085),
+    "DAWES POINT": (-33.8560, 151.2095),
+    "CHIPPENDALE": (-33.8893, 151.1989), "HAYMARKET": (-33.8800, 151.2050),
+    "ULTIMO": (-33.8792, 151.1970), "PYRMONT": (-33.8710, 151.1945),
+    "SURRY HILLS": (-33.8876, 151.2115), "DARLINGHURST": (-33.8764, 151.2178),
+    "POTTS POINT": (-33.8710, 151.2230), "ELIZABETH BAY": (-33.8700, 151.2260),
+    "RUSHCUTTERS BAY": (-33.8740, 151.2280), "WOOLLOOMOOLOO": (-33.8700, 151.2170),
+    "PADDINGTON": (-33.8848, 151.2264), "CENTENNIAL PARK": (-33.8970, 151.2360),
+    "MOORE PARK": (-33.8950, 151.2210),
+    # ── Inner West ──
+    "NEWTOWN": (-33.8979, 151.1793), "CAMPERDOWN": (-33.8891, 151.1779),
+    "GLEBE": (-33.8810, 151.1852), "FOREST LODGE": (-33.8820, 151.1810),
+    "LEICHHARDT": (-33.8839, 151.1567), "LILYFIELD": (-33.8720, 151.1620),
+    "BALMAIN": (-33.8600, 151.1790), "BALMAIN EAST": (-33.8580, 151.1830),
+    "BIRCHGROVE": (-33.8530, 151.1760),
+    "ROZELLE": (-33.8622, 151.1720), "ANNANDALE": (-33.8835, 151.1658),
+    "ENMORE": (-33.9000, 151.1745), "ERSKINEVILLE": (-33.9032, 151.1862),
+    "MARRICKVILLE": (-33.9115, 151.1552), "SYDENHAM": (-33.9170, 151.1680),
+    "TEMPE": (-33.9230, 151.1640), "ST PETERS": (-33.9072, 151.1895),
+    "PETERSHAM": (-33.8950, 151.1545), "STANMORE": (-33.8960, 151.1650),
+    "LEWISHAM": (-33.8960, 151.1480), "SUMMER HILL": (-33.8920, 151.1380),
+    "DULWICH HILL": (-33.9076, 151.1400), "HABERFIELD": (-33.8820, 151.1380),
+    "ASHFIELD": (-33.8880, 151.1247), "CROYDON": (-33.8840, 151.1160),
+    "CONCORD": (-33.8590, 151.1030), "DRUMMOYNE": (-33.8560, 151.1510),
+    "FIVE DOCK": (-33.8657, 151.1290), "ABBOTSFORD": (-33.8530, 151.1290),
+    "CANADA BAY": (-33.8600, 151.1000), "BURWOOD": (-33.8774, 151.1042),
+    # ── Eastern Suburbs ──
+    "WOOLLAHRA": (-33.8879, 151.2383), "DOUBLE BAY": (-33.8780, 151.2430),
+    "BONDI": (-33.8908, 151.2700), "BONDI BEACH": (-33.8920, 151.2720),
+    "BONDI JUNCTION": (-33.8913, 151.2531), "QUEENS PARK": (-33.8990, 151.2500),
+    "COOGEE": (-33.9210, 151.2560), "RANDWICK": (-33.9147, 151.2427),
+    "KINGSFORD": (-33.9208, 151.2272), "MAROUBRA": (-33.9477, 151.2384),
+    "BRONTE": (-33.9040, 151.2600), "WAVERLEY": (-33.8960, 151.2530),
+    "VAUCLUSE": (-33.8570, 151.2760), "ROSE BAY": (-33.8720, 151.2640),
+    "BELLEVUE HILL": (-33.8800, 151.2550), "DOVER HEIGHTS": (-33.8700, 151.2790),
+    "POINT PIPER": (-33.8660, 151.2560),
+    # ── South Sydney ──
     "REDFERN": (-33.8938, 151.2041), "WATERLOO": (-33.8992, 151.2076),
     "ZETLAND": (-33.9070, 151.2120), "ALEXANDRIA": (-33.9065, 151.2035),
-    "SYDNEY": (-33.8688, 151.2093), "MANLY": (-33.7967, 151.2872),
-    "MOSMAN": (-33.8294, 151.2433), "NORTH SYDNEY": (-33.8402, 151.2073),
-    "CHATSWOOD": (-33.7970, 151.1819), "PARRAMATTA": (-33.8148, 151.0042),
-    "STRATHFIELD": (-33.8742, 151.0821), "BANKSTOWN": (-33.9173, 151.0335),
-    "LIVERPOOL": (-33.9200, 150.9238), "PENRITH": (-33.7511, 150.6942),
-    "BLACKTOWN": (-33.7686, 150.9053), "HORNSBY": (-33.7033, 151.0993),
-    "HURSTVILLE": (-33.9644, 151.1033), "CRONULLA": (-34.0555, 151.1533),
-    "RHODES": (-33.8310, 151.0870), "RYDE": (-33.8155, 151.1045),
-    "EPPING": (-33.7730, 151.0823), "BURWOOD": (-33.8774, 151.1042),
-    "MARRICKVILLE": (-33.9115, 151.1552), "MASCOT": (-33.9260, 151.1925),
-    "WOLLI CREEK": (-33.9338, 151.1535), "CAMPSIE": (-33.9116, 151.1024),
-    "CASTLE HILL": (-33.7300, 151.0038), "CAMPBELLTOWN": (-34.0655, 150.8142),
-    "HOMEBUSH": (-33.8629, 151.0897), "AUBURN": (-33.8494, 151.0296),
-    "LIDCOMBE": (-33.8640, 151.0475), "WENTWORTH POINT": (-33.8350, 151.0730),
-    "CONCORD": (-33.8590, 151.1030), "DRUMMOYNE": (-33.8530, 151.1530),
-    "FIVE DOCK": (-33.8657, 151.1290), "ASHFIELD": (-33.8880, 151.1247),
-    "GLADESVILLE": (-33.8350, 151.1300), "HUNTERS HILL": (-33.8350, 151.1450),
-    "LANE COVE": (-33.8163, 151.1661), "ARTARMON": (-33.8101, 151.1892),
-    "DEE WHY": (-33.7517, 151.2893), "BROOKVALE": (-33.7618, 151.2618),
-    "KOGARAH": (-33.9632, 151.1338), "ROCKDALE": (-33.9533, 151.1368),
-    "MIRANDA": (-34.0364, 151.1015), "SUTHERLAND": (-34.0310, 151.0575),
-    "KIRRIBILLI": (-33.8481, 151.2164), "WOOLLAHRA": (-33.8879, 151.2383),
-    "DOUBLE BAY": (-33.8758, 151.2455), "BONDI JUNCTION": (-33.8913, 151.2531),
-    "MAROUBRA": (-33.9477, 151.2384), "KINGSFORD": (-33.9208, 151.2272),
-    "ST PETERS": (-33.9072, 151.1895), "CHIPPENDALE": (-33.8893, 151.1989),
-    "HAYMARKET": (-33.8800, 151.2050), "NEUTRAL BAY": (-33.8358, 151.2197),
-    "CREMORNE": (-33.8327, 151.2273), "ANNANDALE": (-33.8835, 151.1658),
-    "CAMPERDOWN": (-33.8891, 151.1779), "ENMORE": (-33.9000, 151.1745),
-    "ERSKINEVILLE": (-33.9032, 151.1862), "ROSEBERY": (-33.9187, 151.2043),
-    "MEADOWBANK": (-33.8170, 151.0900), "WEST RYDE": (-33.8070, 151.0890),
-    "EASTWOOD": (-33.7912, 151.0805), "CARLINGFORD": (-33.7830, 151.0490),
-    "PETERSHAM": (-33.8950, 151.1545), "STANMORE": (-33.8960, 151.1650),
-    "DULWICH HILL": (-33.9076, 151.1400), "HABERFIELD": (-33.8820, 151.1380),
-    "CANTERBURY": (-33.9116, 151.1180), "ARNCLIFFE": (-33.9372, 151.1470),
-    # Additional suburbs to cover all 33 Greater Sydney LGAs
-    # Bayside
-    "BOTANY": (-33.9450, 151.1960), "EASTGARDENS": (-33.9420, 151.2250),
-    "PAGEWOOD": (-33.9360, 151.2220),
-    # Blue Mountains
-    "KATOOMBA": (-33.7150, 150.3120), "SPRINGWOOD": (-33.6990, 150.5640),
-    "LEURA": (-33.7140, 150.3350),
-    # Camden
-    "CAMDEN": (-34.0540, 150.6960), "ORAN PARK": (-34.0040, 150.7440),
-    "NARELLAN": (-34.0430, 150.7280),
-    # Canada Bay
-    "CANADA BAY": (-33.8600, 151.1000),
-    # Cumberland
-    "MERRYLANDS": (-33.8350, 150.9920), "GRANVILLE": (-33.8340, 151.0100),
-    # Fairfield
-    "FAIRFIELD": (-33.8690, 150.9560), "CABRAMATTA": (-33.8930, 150.9370),
-    # Georges River
-    "BLAKEHURST": (-33.9890, 151.1100),
-    # Hawkesbury
-    "RICHMOND": (-33.5980, 150.7510), "WINDSOR": (-33.6130, 150.8140),
-    # Hills Shire
-    "BAULKHAM HILLS": (-33.7580, 150.9880), "KELLYVILLE": (-33.7200, 150.9600),
-    # Ku-ring-gai
+    "BEACONSFIELD": (-33.9120, 151.2020), "EVELEIGH": (-33.8960, 151.1940),
+    "ROSEBERY": (-33.9187, 151.2043), "MASCOT": (-33.9260, 151.1925),
+    "WOLLI CREEK": (-33.9338, 151.1535), "ARNCLIFFE": (-33.9372, 151.1470),
+    "TURRELLA": (-33.9330, 151.1440), "BARDWELL PARK": (-33.9270, 151.1300),
+    "BARDWELL VALLEY": (-33.9300, 151.1370),
+    # ── Lower North Shore ──  (centroids shifted inland for coastal suburbs)
+    "NORTH SYDNEY": (-33.8402, 151.2073), "KIRRIBILLI": (-33.8490, 151.2170),
+    "NEUTRAL BAY": (-33.8358, 151.2197), "CREMORNE": (-33.8340, 151.2250),
+    "MOSMAN": (-33.8310, 151.2410), "WOLLSTONECRAFT": (-33.8310, 151.1960),
+    "WAVERTON": (-33.8390, 151.2000), "MCMAHONS POINT": (-33.8430, 151.2040),
+    "CROWS NEST": (-33.8260, 151.2020), "ST LEONARDS": (-33.8230, 151.1960),
+    "CAMMERAY": (-33.8210, 151.2120),
+    # ── Upper North Shore ──
+    "CHATSWOOD": (-33.7970, 151.1819), "LANE COVE": (-33.8163, 151.1661),
+    "ARTARMON": (-33.8101, 151.1892), "WILLOUGHBY": (-33.8020, 151.1980),
+    "CASTLE COVE": (-33.7890, 151.2080), "NAREMBURN": (-33.8160, 151.2000),
+    "LINDFIELD": (-33.7750, 151.1650), "KILLARA": (-33.7660, 151.1620),
     "GORDON": (-33.7570, 151.1530), "PYMBLE": (-33.7450, 151.1420),
     "WAHROONGA": (-33.7180, 151.1170), "TURRAMURRA": (-33.7350, 151.1310),
-    # Northern Beaches
-    "MONA VALE": (-33.6770, 151.3030), "NEWPORT": (-33.6560, 151.3190),
-    "COLLAROY": (-33.7340, 151.3020), "NARRABEEN": (-33.7160, 151.2980),
-    # Penrith
-    "ST MARYS": (-33.7620, 150.7740), "EMU PLAINS": (-33.7470, 150.6590),
-    # Sutherland
-    "ENGADINE": (-34.0660, 151.0100), "MENAI": (-34.0150, 151.0150),
-    "CARINGBAH": (-34.0420, 151.1230), "SYLVANIA": (-34.0210, 151.1050),
-    # Waverley
-    "BRONTE": (-33.9030, 151.2630), "WAVERLEY": (-33.8960, 151.2530),
-    # Willoughby
-    "WILLOUGHBY": (-33.8020, 151.1980), "CASTLE COVE": (-33.7890, 151.2080),
-    # Wollondilly
-    "PICTON": (-34.1800, 150.6050), "TAHMOOR": (-34.2240, 150.5910),
-    # Ryde
-    "MACQUARIE PARK": (-33.7760, 151.1230), "NORTH RYDE": (-33.7960, 151.1280),
-    # Campbelltown
-    "INGLEBURN": (-34.0000, 150.8650), "LEUMEAH": (-34.0520, 150.8330),
-    # Canterbury-Bankstown
-    "PUNCHBOWL": (-33.9280, 151.0540), "LAKEMBA": (-33.9190, 151.0750),
-    # Liverpool
-    "CASULA": (-33.9530, 150.9040), "GREEN VALLEY": (-33.9060, 150.8730),
+    "ROSEVILLE": (-33.7840, 151.1770),
+    # ── Northern Beaches ──
+    "MANLY": (-33.7980, 151.2840), "DEE WHY": (-33.7517, 151.2893),
+    "BROOKVALE": (-33.7618, 151.2618), "FRESHWATER": (-33.7770, 151.2850),
+    "CURL CURL": (-33.7680, 151.2870), "NARRABEEN": (-33.7160, 151.2980),
+    "COLLAROY": (-33.7340, 151.3020), "MONA VALE": (-33.6770, 151.3030),
+    "NEWPORT": (-33.6560, 151.3190), "AVALON BEACH": (-33.6350, 151.3280),
+    "WARRIEWOOD": (-33.6870, 151.2950), "BALGOWLAH": (-33.7940, 151.2600),
+    "SEAFORTH": (-33.7950, 151.2500),
+    # ── Parramatta & Western Sydney ──
+    "PARRAMATTA": (-33.8148, 151.0042), "HARRIS PARK": (-33.8210, 151.0100),
+    "GRANVILLE": (-33.8340, 151.0100), "MERRYLANDS": (-33.8350, 150.9920),
+    "AUBURN": (-33.8494, 151.0296), "LIDCOMBE": (-33.8640, 151.0475),
+    "HOMEBUSH": (-33.8629, 151.0897), "HOMEBUSH WEST": (-33.8630, 151.0690),
+    "STRATHFIELD": (-33.8742, 151.0821),
+    "WENTWORTH POINT": (-33.8350, 151.0730), "RHODES": (-33.8310, 151.0870),
+    "MEADOWBANK": (-33.8170, 151.0900), "WEST RYDE": (-33.8070, 151.0890),
+    "RYDE": (-33.8155, 151.1045), "NORTH RYDE": (-33.7960, 151.1280),
+    "MACQUARIE PARK": (-33.7760, 151.1230),
+    "GLADESVILLE": (-33.8350, 151.1300), "HUNTERS HILL": (-33.8370, 151.1430),
+    "EASTWOOD": (-33.7912, 151.0805), "EPPING": (-33.7730, 151.0823),
+    "CARLINGFORD": (-33.7830, 151.0490),
+    # ── Canterbury-Bankstown ──
+    "CAMPSIE": (-33.9116, 151.1024), "CANTERBURY": (-33.9116, 151.1180),
+    "BANKSTOWN": (-33.9173, 151.0335), "PUNCHBOWL": (-33.9280, 151.0540),
+    "LAKEMBA": (-33.9190, 151.0750), "BELMORE": (-33.9200, 151.0870),
+    "ROSELANDS": (-33.9340, 151.0780), "REVESBY": (-33.9500, 151.0180),
+    "PADSTOW": (-33.9520, 151.0370), "BASS HILL": (-33.9030, 150.9920),
+    # ── St George ──
+    "KOGARAH": (-33.9632, 151.1338), "ROCKDALE": (-33.9533, 151.1368),
+    "HURSTVILLE": (-33.9644, 151.1033), "BLAKEHURST": (-33.9890, 151.1100),
+    "SANS SOUCI": (-33.9920, 151.1250), "RAMSGATE": (-33.9840, 151.1400),
+    "BEXLEY": (-33.9500, 151.1240), "ALLAWAH": (-33.9700, 151.1120),
+    "CARLTON": (-33.9680, 151.1210), "PENSHURST": (-33.9600, 151.0900),
+    "MORTDALE": (-33.9680, 151.0770), "OATLEY": (-33.9830, 151.0760),
+    # ── Sutherland Shire ──
+    "CRONULLA": (-34.0540, 151.1520), "MIRANDA": (-34.0364, 151.1015),
+    "SUTHERLAND": (-34.0310, 151.0575), "CARINGBAH": (-34.0420, 151.1230),
+    "SYLVANIA": (-34.0210, 151.1050), "ENGADINE": (-34.0660, 151.0100),
+    "MENAI": (-34.0150, 151.0150), "GYMEA": (-34.0360, 151.0850),
+    "JANNALI": (-34.0200, 151.0660), "KIRRAWEE": (-34.0370, 151.0740),
     "PORT HACKING": (-34.0720, 151.1290),
+    # ── Hills Shire ──
+    "CASTLE HILL": (-33.7300, 151.0038), "BAULKHAM HILLS": (-33.7580, 150.9880),
+    "KELLYVILLE": (-33.7200, 150.9600), "ROUSE HILL": (-33.6880, 150.9150),
+    "BELLA VISTA": (-33.7400, 150.9560), "NORWEST": (-33.7320, 150.9560),
+    # ── Hornsby Shire ──
+    "HORNSBY": (-33.7033, 151.0993), "WAITARA": (-33.7100, 151.1050),
+    "BEECROFT": (-33.7500, 151.0650), "THORNLEIGH": (-33.7280, 151.0780),
+    "PENNANT HILLS": (-33.7380, 151.0720), "NORMANHURST": (-33.7200, 151.0950),
+    "ASQUITH": (-33.6900, 151.1060),
+    # ── Blacktown / Penrith / Western ──
+    "BLACKTOWN": (-33.7686, 150.9053), "PENRITH": (-33.7511, 150.6942),
+    "ST MARYS": (-33.7620, 150.7740), "EMU PLAINS": (-33.7470, 150.6590),
+    "SEVEN HILLS": (-33.7740, 150.9360), "MOUNT DRUITT": (-33.7680, 150.8220),
+    "ROOTY HILL": (-33.7700, 150.8430),
+    # ── Liverpool / Fairfield / Campbelltown ──
+    "LIVERPOOL": (-33.9200, 150.9238), "FAIRFIELD": (-33.8690, 150.9560),
+    "CABRAMATTA": (-33.8930, 150.9370), "CASULA": (-33.9530, 150.9040),
+    "GREEN VALLEY": (-33.9060, 150.8730),
+    "CAMPBELLTOWN": (-34.0655, 150.8142), "INGLEBURN": (-34.0000, 150.8650),
+    "LEUMEAH": (-34.0520, 150.8330),
+    # ── Camden / Wollondilly ──
+    "CAMDEN": (-34.0540, 150.6960), "ORAN PARK": (-34.0040, 150.7440),
+    "NARELLAN": (-34.0430, 150.7280), "GREGORY HILLS": (-34.0280, 150.7700),
+    "PICTON": (-34.1800, 150.6050), "TAHMOOR": (-34.2240, 150.5910),
+    # ── Blue Mountains ──
+    "KATOOMBA": (-33.7150, 150.3120), "SPRINGWOOD": (-33.6990, 150.5640),
+    "LEURA": (-33.7140, 150.3350),
+    # ── Hawkesbury ──
+    "RICHMOND": (-33.5980, 150.7510), "WINDSOR": (-33.6130, 150.8140),
+    # ── Bayside ──
+    "BOTANY": (-33.9450, 151.1960), "EASTGARDENS": (-33.9420, 151.2250),
+    "PAGEWOOD": (-33.9360, 151.2220), "EASTLAKES": (-33.9300, 151.2140),
+    "BANKSMEADOW": (-33.9600, 151.2100),
 }
 
 
 def get_centroid_with_jitter(suburb_name):
     """Get lat/lng for suburb with small random offset.
 
-    Jitter is kept small (~100m) to avoid placing coastal suburb
+    Jitter is kept small (~55m) to avoid placing coastal/peninsula suburb
     properties in the water.
     """
     sub = suburb_name.upper().strip()
     centroid = SUBURB_CENTROIDS.get(sub) or FALLBACK_CENTROIDS.get(sub)
     if centroid:
         lat, lng = centroid
-        # Small jitter (~100m) so points don't overlap but stay on land
-        jitter_lat = random.uniform(-0.001, 0.001)
-        jitter_lng = random.uniform(-0.001, 0.001)
+        # Small jitter (~55m) so points don't overlap but stay on land
+        jitter_lat = random.uniform(-0.0005, 0.0005)
+        jitter_lng = random.uniform(-0.0005, 0.0005)
         return round(lat + jitter_lat, 6), round(lng + jitter_lng, 6)
     return None, None
 
@@ -484,6 +530,9 @@ def download_and_parse_zip(label, url, cutoff_date):
                     if not is_valid_sale(row):
                         continue
 
+                    # contract_date = date of exchange (成交日期), when buyer & seller sign.
+                    # settlement_date = later administrative transfer date (usually +42 days).
+                    # We use contract_date as it reflects actual market timing.
                     contract_date = parse_date(row.get("contract_date"))
                     if not contract_date or contract_date < cutoff_date:
                         continue
@@ -562,8 +611,17 @@ SUBURBS_GEOJSON_URL = (
 )
 
 
+# Greater Sydney bounding box for GeoJSON filtering
+SYDNEY_BOUNDS = {
+    "lat_min": -34.35,  # South (Wollondilly / Campbelltown)
+    "lat_max": -33.40,  # North (Hawkesbury / Hornsby)
+    "lng_min": 150.20,  # West (Blue Mountains)
+    "lng_max": 151.55,  # East (coast)
+}
+
+
 def download_suburb_geojson():
-    """Download NSW suburb boundaries and filter to Sydney suburbs."""
+    """Download NSW suburb boundaries and filter to Greater Sydney area."""
     if SUBURBS_FILE.exists():
         log.info("Suburb GeoJSON already exists, skipping download")
         return True
@@ -578,8 +636,8 @@ def download_suburb_geojson():
         SUBURBS_FILE.write_text(json.dumps({"type": "FeatureCollection", "features": []}))
         return False
 
-    # Filter to Greater Sydney suburbs by checking if postcode is in our set
-    # Also keep suburbs from our centroid/fallback tables
+    # Filter to Greater Sydney suburbs using geographic bounding box
+    # This captures all suburbs in the Greater Sydney area automatically
     known_names = set(FALLBACK_CENTROIDS.keys())
     sydney_features = []
 
@@ -588,8 +646,36 @@ def download_suburb_geojson():
             f.get("properties", {}).get("LOC_NAME", "")
             or f.get("properties", {}).get("suburb", "")
         ).upper().strip()
+        if not name:
+            continue
+
+        # Include if suburb name is in our known list
         if name in known_names:
             sydney_features.append(f)
+            continue
+
+        # Otherwise, include if the suburb's centroid falls within Greater Sydney bounds
+        coords = f.get("geometry", {}).get("coordinates")
+        if not coords:
+            continue
+        try:
+            all_coords = []
+            def flatten(arr):
+                if isinstance(arr[0], (int, float)):
+                    all_coords.append(arr)
+                else:
+                    for sub in arr:
+                        flatten(sub)
+            flatten(coords)
+            if not all_coords:
+                continue
+            avg_lng = sum(c[0] for c in all_coords) / len(all_coords)
+            avg_lat = sum(c[1] for c in all_coords) / len(all_coords)
+            if (SYDNEY_BOUNDS["lat_min"] <= avg_lat <= SYDNEY_BOUNDS["lat_max"]
+                    and SYDNEY_BOUNDS["lng_min"] <= avg_lng <= SYDNEY_BOUNDS["lng_max"]):
+                sydney_features.append(f)
+        except (IndexError, TypeError, ZeroDivisionError):
+            continue
 
     filtered = {
         "type": "FeatureCollection",
