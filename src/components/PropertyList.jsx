@@ -71,10 +71,9 @@ export default function PropertyList({ properties, suburb }) {
 
       <div className="prop-items">
         {paged.map((p, i) => {
-          const addressSlug = (p.address + ' ' + suburb + ' NSW ' + (p.postcode || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '')
           const suburbSlug = suburb.toLowerCase().replace(/ /g, '-')
-          const domainSoldUrl = `https://www.domain.com.au/sold-listings/${suburbSlug}-nsw-${p.postcode || ''}/`
-          const realestateUrl = `https://www.realestate.com.au/sold/in-${suburbSlug},+nsw+${p.postcode || ''}/`
+          const domainSoldUrl = `https://www.domain.com.au/sold-listings/?suburb=${suburbSlug}-nsw-${p.postcode || ''}&ptype=residential`
+          const realestateUrl = `https://www.realestate.com.au/sold/in-${suburbSlug},+nsw+${p.postcode || ''}/list-1?activeSort=solddate`
 
           return (
             <div key={p.id || i} className="prop-card">

@@ -38,9 +38,21 @@ function priceToColor(price, min, max) {
   }
 }
 
-// Component to recenter map and track zoom level
+// Component to recenter map, track zoom level, and create custom panes
 function MapController({ selectedSuburb, suburbCentroids, onZoomChange, onSearchLocation }) {
   const map = useMap()
+
+  // Create custom panes for z-index control
+  useEffect(() => {
+    if (!map.getPane('suburbPane')) {
+      const suburbPane = map.createPane('suburbPane')
+      suburbPane.style.zIndex = 300
+    }
+    if (!map.getPane('markerPane')) {
+      const markerPane = map.createPane('markerPane')
+      markerPane.style.zIndex = 500
+    }
+  }, [map])
 
   useMapEvents({
     zoomend() {
@@ -249,6 +261,7 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
       fillOpacity: isSelected ? 0.85 : stats ? 0.6 : 0.2,
       color: isSelected ? '#fff' : stats ? 'rgba(255,255,255,0.3)' : '#2e3350',
       weight: isSelected ? 2.5 : 1,
+      pane: 'suburbPane',
     }
   }
 
@@ -352,8 +365,9 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
         {showPropertyMarkers && filteredProperties.map(p => {
           if (!p.lat || !p.lng) return null
           const suburbSlug = p.suburb.toLowerCase().replace(/ /g, '-')
-          const domainUrl = `https://www.domain.com.au/sold-listings/${suburbSlug}-nsw-${p.postcode || ''}/`
-          const realestateUrl = `https://www.realestate.com.au/sold/in-${suburbSlug},+nsw+${p.postcode || ''}/`
+          const addressQuery = encodeURIComponent(`${p.address} ${p.suburb} NSW ${p.postcode || ''}`)
+          const domainUrl = `https://www.domain.com.au/sold-listings/?suburb=${suburbSlug}-nsw-${p.postcode || ''}&ptype=residential`
+          const realestateUrl = `https://www.realestate.com.au/sold/in-${suburbSlug},+nsw+${p.postcode || ''}/list-1?activeSort=solddate`
 
           return (
             <CircleMarker
@@ -366,6 +380,7 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
               color={TYPE_COLORS[p.type] || '#4f6ef7'}
               weight={1.5}
               opacity={0.5}
+              pane="markerPane"
             >
               <Popup className="property-popup" maxWidth={280}>
                 <div className="popup-content">

@@ -11,10 +11,10 @@ export default function App() {
     types: ['House', 'Unit', 'Townhouse', 'Land'],
     minPrice: 0,
     maxPrice: Infinity,
-    months: 6,
+    months: 12,
   })
 
-  const { properties, suburbs, lastUpdated, loading, error } = usePropertyData()
+  const { properties, suburbs, lastUpdated, dataNote, loading, error } = usePropertyData()
 
   const handleSuburbSelect = useCallback((suburb) => {
     setSelectedSuburb(suburb)
@@ -68,6 +68,16 @@ export default function App() {
           </a>
         </div>
       </header>
+
+      {/* Data disclaimer */}
+      <div className="data-disclaimer">
+        <span className="disclaimer-icon">&#9432;</span>
+        <span>
+          Data sourced from <a href="https://www.valuergeneral.nsw.gov.au/services/sales-enquiry.htm?execution=e1s2" target="_blank" rel="noopener noreferrer">NSW Valuer General</a>.
+          Prices, bedroom/bathroom counts, and property details are approximate and may not reflect exact records.
+          Verify via <a href="https://www.valuergeneral.nsw.gov.au/services/sales-enquiry.htm?execution=e1s2" target="_blank" rel="noopener noreferrer">official NSW VG sales enquiry</a> for accuracy.
+        </span>
+      </div>
 
       {/* Filter Bar */}
       <FilterBar filters={filters} onFilterChange={handleFilterChange} />

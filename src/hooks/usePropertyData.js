@@ -12,6 +12,7 @@ export function usePropertyData() {
   const [properties, setProperties] = useState([])
   const [suburbs, setSuburbs] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
+  const [dataNote, setDataNote] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -39,6 +40,7 @@ export function usePropertyData() {
 
         setProperties(propsData.properties || [])
         setLastUpdated(propsData.lastUpdated || null)
+        setDataNote(propsData.note || null)
         setSuburbs(suburbsData)
       } catch (err) {
         if (!cancelled) {
@@ -54,5 +56,5 @@ export function usePropertyData() {
     return () => { cancelled = true }
   }, [])
 
-  return { properties, suburbs, lastUpdated, loading, error }
+  return { properties, suburbs, lastUpdated, dataNote, loading, error }
 }
