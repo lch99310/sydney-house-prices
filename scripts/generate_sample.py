@@ -13,6 +13,68 @@ import hashlib
 from datetime import date, timedelta
 from pathlib import Path
 
+# ── Suburb polygon data for realistic coordinate distribution ────────────────
+_SUBURB_POLYGONS = {}  # loaded lazily: suburb_name -> list of (lng, lat) tuples
+
+
+def _load_suburb_polygons():
+    """Load suburb boundary polygons from suburbs.geojson."""
+    if _SUBURB_POLYGONS:
+        return
+    geojson_path = Path(__file__).parent.parent / "public" / "data" / "suburbs.geojson"
+    if not geojson_path.exists():
+        return
+    data = json.loads(geojson_path.read_text())
+    for feat in data.get("features", []):
+        name = (feat.get("properties", {}).get("suburb") or
+                feat.get("properties", {}).get("LOC_NAME", "")).upper().strip()
+        coords = feat.get("geometry", {}).get("coordinates")
+        if name and coords:
+            # Handle Polygon (coords[0]) and MultiPolygon (coords[0][0])
+            ring = coords[0] if feat["geometry"]["type"] == "Polygon" else coords[0][0]
+            _SUBURB_POLYGONS[name] = ring  # list of [lng, lat]
+
+
+def _point_in_polygon(lng, lat, polygon):
+    """Ray-casting point-in-polygon test."""
+    n = len(polygon)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = polygon[i][0], polygon[i][1]
+        xj, yj = polygon[j][0], polygon[j][1]
+        if ((yi > lat) != (yj > lat)) and (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _random_point_in_suburb(suburb_name, centroid_lat, centroid_lng):
+    """Generate a random point within the suburb polygon, or with scaled jitter."""
+    _load_suburb_polygons()
+    polygon = _SUBURB_POLYGONS.get(suburb_name.upper().strip())
+
+    if polygon:
+        lngs = [p[0] for p in polygon]
+        lats = [p[1] for p in polygon]
+        min_lng, max_lng = min(lngs), max(lngs)
+        min_lat, max_lat = min(lats), max(lats)
+        # Try to place point inside polygon (rejection sampling)
+        for _ in range(30):
+            lng = random.uniform(min_lng, max_lng)
+            lat = random.uniform(min_lat, max_lat)
+            if _point_in_polygon(lng, lat, polygon):
+                return round(lat, 6), round(lng, 6)
+        # Fallback: use bbox center with reduced jitter
+        range_lat = (max_lat - min_lat) * 0.35
+        range_lng = (max_lng - min_lng) * 0.35
+        return (round(centroid_lat + random.uniform(-range_lat, range_lat), 6),
+                round(centroid_lng + random.uniform(-range_lng, range_lng), 6))
+
+    # No polygon available: use moderate jitter (~330m)
+    return (round(centroid_lat + random.uniform(-0.003, 0.003), 6),
+            round(centroid_lng + random.uniform(-0.003, 0.003), 6))
+
 # ── Price ranges per suburb and type ─────────────────────────────────────────
 SUBURB_PROFILES = {
     # ── CBD & Inner City ──
@@ -378,9 +440,8 @@ def generate_sample_data(months_back=18, seed=42):
                 "Commercial": random.choice(["B1", "B2", "B4"]),
             }[prop_type]
 
-            # Jitter coordinates (~55m to avoid placing points in water)
-            lat = round(lat_base + random.uniform(-0.0005, 0.0005), 6)
-            lng = round(lng_base + random.uniform(-0.0005, 0.0005), 6)
+            # Distribute within suburb polygon for realistic map placement
+            lat, lng = _random_point_in_suburb(suburb, lat_base, lng_base)
 
             uid_src = f"sample-{prop_id}"
             uid = hashlib.md5(uid_src.encode()).hexdigest()[:12]

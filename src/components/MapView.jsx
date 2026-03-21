@@ -244,8 +244,7 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
     return centroids
   }, [suburbs])
 
-  // Compute suburb cluster circles from property data
-  // These provide coverage for ALL suburbs with data, not just those with GeoJSON polygons
+  // Compute per-suburb data from property data
   const suburbClusters = useMemo(() => {
     const clusters = {}
     filteredProperties.forEach(p => {
@@ -258,15 +257,6 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
       clusters[sub].prices.push(p.price)
       clusters[sub].count++
     })
-
-    // Set of suburb names that have GeoJSON polygon coverage
-    const geoJsonSuburbs = new Set()
-    if (suburbs?.features) {
-      suburbs.features.forEach(f => {
-        const name = (f.properties?.LOC_NAME || f.properties?.suburb || '').toUpperCase()
-        if (name) geoJsonSuburbs.add(name)
-      })
-    }
 
     return Object.entries(clusters)
       .filter(([, data]) => data.lats.length > 0)
@@ -282,10 +272,50 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
           lng: data.lngs.reduce((a, b) => a + b, 0) / data.lngs.length,
           count: data.count,
           median: med,
-          hasPolygon: geoJsonSuburbs.has(name),
+          prices: data.prices,
         }
       })
-  }, [filteredProperties, suburbs])
+  }, [filteredProperties])
+
+  // Dynamic clustering: merge nearby suburbs at low zoom to avoid overlapping circles
+  const displayClusters = useMemo(() => {
+    if (zoomLevel >= 13) return suburbClusters
+
+    // Grid-based spatial clustering: merge suburbs in the same grid cell
+    const gridSize = zoomLevel <= 10 ? 0.04 : zoomLevel <= 11 ? 0.02 : 0.012
+    const grid = {}
+
+    suburbClusters.forEach(cluster => {
+      const key = `${Math.floor(cluster.lat / gridSize)}_${Math.floor(cluster.lng / gridSize)}`
+      if (!grid[key]) {
+        grid[key] = { lats: [], lngs: [], prices: [], count: 0, names: [] }
+      }
+      grid[key].lats.push(cluster.lat * cluster.count)
+      grid[key].lngs.push(cluster.lng * cluster.count)
+      grid[key].prices.push(...cluster.prices)
+      grid[key].count += cluster.count
+      grid[key].names.push(cluster.name)
+    })
+
+    return Object.values(grid).map(g => {
+      const sorted = [...g.prices].sort((a, b) => a - b)
+      const mid = Math.floor(sorted.length / 2)
+      const med = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+      const label = g.names.length === 1
+        ? g.names[0]
+        : g.names.length <= 3
+          ? g.names.join(', ')
+          : `${g.names[0]} +${g.names.length - 1}`
+      return {
+        name: label,
+        lat: g.lats.reduce((a, b) => a + b) / g.count,
+        lng: g.lngs.reduce((a, b) => a + b) / g.count,
+        count: g.count,
+        median: med,
+        suburbNames: g.names,
+      }
+    })
+  }, [suburbClusters, zoomLevel])
 
   // Price range for color scale
   const { minPrice, maxPrice } = useMemo(() => {
@@ -405,18 +435,18 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
           />
         )}
 
-        {/* Suburb cluster dots — visible at all zoom levels */}
-        {/* Radius adapts to zoom: larger when zoomed out, smaller when zoomed in */}
-        {suburbClusters.map(cluster => {
-          // Base radius from transaction count
-          const countRadius = Math.max(5, Math.min(14, 3 + Math.sqrt(cluster.count) * 1.2))
-          // Scale down as we zoom in so dots don't dominate over individual markers
-          const zoomScale = zoomLevel <= 12 ? 1 : Math.max(0.4, 1 - (zoomLevel - 12) * 0.12)
+        {/* Suburb cluster dots — only show when not zoomed into individual markers */}
+        {zoomLevel < 15 && displayClusters.map(cluster => {
+          const countRadius = Math.max(5, Math.min(16, 3 + Math.sqrt(cluster.count) * 1.2))
+          const zoomScale = zoomLevel <= 12 ? 1 : Math.max(0.4, 1 - (zoomLevel - 12) * 0.15)
           const radius = Math.round(countRadius * zoomScale)
-          const isSelected = cluster.name === selectedSuburb?.toUpperCase()
+          const isMerged = cluster.suburbNames && cluster.suburbNames.length > 1
+          const isSelected = isMerged
+            ? cluster.suburbNames?.includes(selectedSuburb?.toUpperCase())
+            : cluster.name === selectedSuburb?.toUpperCase()
           return (
             <CircleMarker
-              key={`cluster-${cluster.name}`}
+              key={`cluster-${cluster.name}-${zoomLevel}`}
               center={[cluster.lat, cluster.lng]}
               radius={isSelected ? radius + 2 : radius}
               fillColor={priceToColor(cluster.median, minPrice, maxPrice)}
@@ -424,7 +454,13 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
               color={isSelected ? '#fff' : 'rgba(255,255,255,0.4)'}
               weight={isSelected ? 2 : 1}
               eventHandlers={{
-                click: () => onSuburbSelect(cluster.name),
+                click: () => {
+                  if (isMerged) {
+                    onSuburbSelect(cluster.suburbNames[0])
+                  } else {
+                    onSuburbSelect(cluster.name)
+                  }
+                },
               }}
             >
               <Tooltip

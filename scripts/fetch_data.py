@@ -234,10 +234,11 @@ def is_valid_sale(row):
 
 # Seed centroids for the most common Sydney suburbs
 SUBURB_CENTROIDS = {}
+SUBURB_POLYGONS = {}  # suburb_name -> list of [lng, lat] ring coordinates
 
 def load_centroids_from_geojson():
-    """Load suburb centroids from the GeoJSON file if available."""
-    global SUBURB_CENTROIDS
+    """Load suburb centroids and polygon boundaries from the GeoJSON file."""
+    global SUBURB_CENTROIDS, SUBURB_POLYGONS
     if not SUBURBS_FILE.exists():
         return
     try:
@@ -250,10 +251,16 @@ def load_centroids_from_geojson():
             ).upper().strip()
             if not name:
                 continue
-            coords = feature.get("geometry", {}).get("coordinates")
+            geom = feature.get("geometry", {})
+            coords = geom.get("coordinates")
             if not coords:
                 continue
-            # Flatten all coordinate pairs
+            # Store polygon ring for point-in-polygon placement
+            if geom.get("type") == "Polygon":
+                SUBURB_POLYGONS[name] = coords[0]
+            elif geom.get("type") == "MultiPolygon":
+                SUBURB_POLYGONS[name] = coords[0][0]
+            # Flatten all coordinate pairs for centroid
             all_coords = []
             def flatten(arr):
                 if isinstance(arr[0], (int, float)):
@@ -420,21 +427,110 @@ FALLBACK_CENTROIDS = {
 }
 
 
-def get_centroid_with_jitter(suburb_name):
-    """Get lat/lng for suburb with small random offset.
+# Postcode-area centroids: fallback for suburbs not in centroid tables.
+# Maps postcode prefix (first 3 digits) to approximate lat/lng.
+POSTCODE_AREA_CENTROIDS = {
+    "200": (-33.8688, 151.2093),  # Sydney CBD
+    "201": (-33.8740, 151.2210),  # Potts Point / Elizabeth Bay
+    "201": (-33.8740, 151.2210),
+    "202": (-33.8890, 151.2450),  # Bondi Junction area
+    "203": (-33.9100, 151.2400),  # Randwick / Coogee
+    "204": (-33.8800, 151.1600),  # Leichhardt / Inner West
+    "205": (-33.9300, 151.1500),  # Arncliffe / Wolli Creek
+    "206": (-33.8700, 151.2050),  # CBD fringe
+    "207": (-33.8792, 151.1970),  # Ultimo
+    "208": (-33.8893, 151.1989),  # Chippendale
+    "209": (-33.8710, 151.1945),  # Pyrmont
+    "210": (-33.8876, 151.2115),  # Surry Hills
+    "211": (-33.8350, 151.1300),  # Gladesville / Ryde area
+    "212": (-33.8155, 151.1045),  # Ryde
+    "213": (-33.7760, 151.1230),  # Macquarie Park
+    "214": (-33.8170, 151.0900),  # Meadowbank
+    "215": (-33.8148, 151.0042),  # Parramatta
+    "216": (-33.9533, 151.1368),  # Rockdale
+    "217": (-33.9632, 151.1338),  # Kogarah
+    "218": (-33.9187, 151.2043),  # Rosebery
+    "219": (-33.9116, 151.1024),  # Campsie
+    "220": (-33.9644, 151.1033),  # Hurstville
+    "221": (-33.9600, 151.0900),  # Penshurst
+    "222": (-34.0364, 151.1015),  # Miranda / Sutherland
+    "223": (-34.0540, 151.1520),  # Cronulla
+    "225": (-34.0310, 151.0575),  # Sutherland
+    "226": (-33.9500, 151.0180),  # Revesby
+    "227": (-33.7300, 151.0038),  # Castle Hill
+    "228": (-33.7686, 150.9053),  # Blacktown area
+    "229": (-33.7580, 150.9880),  # Baulkham Hills
+    "206": (-33.8600, 151.2073),
+    "207": (-33.8792, 151.1970),
+    "213": (-33.7830, 151.0490),  # Carlingford
+    "214": (-33.8170, 151.0900),
+    "215": (-33.8148, 151.0042),
+    "216": (-33.9533, 151.1368),
+    "217": (-33.9632, 151.1338),
+    "256": (-33.7340, 151.3020),  # Central Coast fringe
+    "274": (-33.7511, 150.6942),  # Penrith
+    "275": (-33.7620, 150.7740),  # St Marys
+    "276": (-33.7470, 150.6590),  # Blue Mountains
+    "277": (-33.7150, 150.3120),  # Katoomba
+    "256": (-34.0655, 150.8142),  # Campbelltown
+}
 
-    Jitter is kept small (~55m) to avoid placing coastal/peninsula suburb
-    properties in the water.
+
+def _point_in_polygon(lng, lat, polygon):
+    """Ray-casting point-in-polygon test."""
+    n = len(polygon)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = polygon[i][0], polygon[i][1]
+        xj, yj = polygon[j][0], polygon[j][1]
+        if ((yi > lat) != (yj > lat)) and (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def get_centroid_with_jitter(suburb_name, postcode=None):
+    """Get lat/lng for suburb with realistic spread within suburb boundary.
+
+    Uses polygon boundary when available to place points within the actual
+    suburb area. Falls back to moderate jitter or postcode-area centroid.
     """
     sub = suburb_name.upper().strip()
     centroid = SUBURB_CENTROIDS.get(sub) or FALLBACK_CENTROIDS.get(sub)
-    if centroid:
-        lat, lng = centroid
-        # Small jitter (~55m) so points don't overlap but stay on land
-        jitter_lat = random.uniform(-0.0005, 0.0005)
-        jitter_lng = random.uniform(-0.0005, 0.0005)
-        return round(lat + jitter_lat, 6), round(lng + jitter_lng, 6)
-    return None, None
+
+    # Fallback: use postcode prefix to get approximate location
+    if not centroid and postcode:
+        pc = str(postcode).strip()
+        centroid = POSTCODE_AREA_CENTROIDS.get(pc[:3])
+
+    if not centroid:
+        return None, None
+
+    lat, lng = centroid
+
+    # Try to place within suburb polygon if available
+    polygon = SUBURB_POLYGONS.get(sub)
+    if polygon:
+        plngs = [p[0] for p in polygon]
+        plats = [p[1] for p in polygon]
+        min_lng, max_lng = min(plngs), max(plngs)
+        min_lat, max_lat = min(plats), max(plats)
+        for _ in range(30):
+            rlng = random.uniform(min_lng, max_lng)
+            rlat = random.uniform(min_lat, max_lat)
+            if _point_in_polygon(rlng, rlat, polygon):
+                return round(rlat, 6), round(rlng, 6)
+        # Fallback: reduced bbox jitter
+        range_lat = (max_lat - min_lat) * 0.35
+        range_lng = (max_lng - min_lng) * 0.35
+        return (round(lat + random.uniform(-range_lat, range_lat), 6),
+                round(lng + random.uniform(-range_lng, range_lng), 6))
+
+    # No polygon: moderate jitter (~330m)
+    jitter_lat = random.uniform(-0.003, 0.003)
+    jitter_lng = random.uniform(-0.003, 0.003)
+    return round(lat + jitter_lat, 6), round(lng + jitter_lng, 6)
 
 
 # ── Download NSW VG PSI data ─────────────────────────────────────────────────
@@ -569,7 +665,8 @@ def download_and_parse_zip(label, url, cutoff_date):
                         area,
                     )
 
-                    lat, lng = get_centroid_with_jitter(locality)
+                    postcode_str = str(row.get("post_code", "") or "").strip()
+                    lat, lng = get_centroid_with_jitter(locality, postcode_str)
                     if lat is None:
                         # Unknown suburb — skip (not in our centroid tables)
                         continue

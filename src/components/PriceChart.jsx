@@ -57,7 +57,7 @@ function CustomTooltip({ active, payload }) {
         {formatPrice(d.price)}
       </div>
       <div style={{ color: '#9aa0b8', marginTop: 2 }}>{formatShortDate(d.date)}</div>
-      {d.bedrooms && <div style={{ color: '#9aa0b8' }}>{d.bedrooms} bed · {d.bathrooms} bath</div>}
+      {d.area > 0 && <div style={{ color: '#9aa0b8' }}>{d.area.toLocaleString()} m²</div>}
     </div>
   )
 }
