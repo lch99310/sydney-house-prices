@@ -1,196 +1,59 @@
-# 🏠 Sydney House Prices
+# Sydney House Prices
 
-Interactive map showing historical property sale prices across Sydney suburbs, powered by NSW Government open data.
+Interactive map of property sale prices across Greater Sydney, powered by official NSW Government open data.
 
-**Live Demo:** `https://YOUR-USERNAME.github.io/sydney-house-prices/`
-
-![Screenshot: dark map of Sydney with colour-coded suburbs and sidebar showing price history]
+**Live:** [https://lch99310.github.io/sydney-house-prices/](https://lch99310.github.io/sydney-house-prices/)
 
 ---
 
-## Features
+## What It Does
 
-- **Interactive map** – Sydney suburbs colour-coded by median sale price (green → red)
-- **Click any suburb** – opens a detail panel with price stats, chart, and property list
-- **Scatter chart + trend line** – X = time, Y = price, dashed trend line per property type
-- **Filters** – property type (House / Unit / Townhouse / Land), price range, time period
-- **Domain.com.au links** – every transaction links to a Domain search for that address
-- **Auto-updated daily** – GitHub Actions fetches new data from NSW Valuer General each morning
-
----
-
-## Quick Start (Local Development)
-
-```bash
-# 1. Clone
-git clone https://github.com/YOUR-USERNAME/sydney-house-prices.git
-cd sydney-house-prices
-
-# 2. Install Node dependencies
-npm install
-
-# 3. Generate sample data (no internet needed for dev)
-cd scripts
-python3 generate_sample.py
-cd ..
-
-# 4. Start dev server
-npm run dev
-# Open http://localhost:5173/sydney-house-prices/
-```
+- **Colour-coded suburb map** - See median sale prices at a glance across 100+ Sydney suburbs (green = affordable, red = premium)
+- **Click any suburb** - Opens a detail panel with median, average, lowest, and highest prices broken down by property type
+- **Price trend chart** - Scatter plot with trend lines showing how prices move over time for each property type
+- **Transaction list** - Browse every recorded sale with address, price, date, land area, and zoning
+- **Filters** - Narrow by property type (House / Unit / Townhouse / Land / Commercial), price range, and time period (3-24 months)
+- **Search** - Find any Sydney address or suburb via the search bar
+- **Auto-updated weekly** - GitHub Actions fetches new data from NSW Valuer General every Tuesday morning
 
 ---
 
-## Deploy to GitHub Pages (One-time Setup)
+## Data Source
 
-### Step 1: Create GitHub repo
+All property sales data comes from the **NSW Valuer General - Property Sales Information (PSI)** portal.
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-gh repo create sydney-house-prices --public --source=. --push
-```
+> You can access free bulk NSW Property Sales Information (PSI) from 1990 onwards. Current (2001 to current date) PSI files are generated on a weekly basis for each Local Government Area. These files contain sales data created in the week prior to file creation.
+>
+> PSI data files are delivered in .DAT file format. They can be imported into most spreadsheet and database programs.
+>
+> Bulk PSI is available under open access licensing as part of the NSW Government Open Data Policy and is subject to the **Creative Commons BY-NC-ND 4.0 Licence**.
+>
+> We do not guarantee the completeness or accuracy of the data as bulk PSI is obtained from a variety of sources.
+>
+> -- *NSW Valuer General, [valuergeneral.nsw.gov.au](https://www.valuergeneral.nsw.gov.au/)*
 
-### Step 2: Enable GitHub Pages
+### Important Notes
 
-1. Go to your repo → **Settings** → **Pages**
-2. Under **Source**, select **GitHub Actions**
-3. Save
-
-### Step 3: Generate initial data
-
-Either push the included sample data, or fetch real data:
-
-```bash
-# For real NSW VG data:
-cd scripts
-pip install -r requirements.txt
-python3 fetch_data.py
-git add public/data/
-git commit -m "Add initial property data"
-git push
-```
-
-### Step 4: Automatic deployment
-
-The `deploy.yml` workflow triggers on every push to `main`.
-The `update-data.yml` workflow runs daily at 11:00 AM AEST.
-
-Check **Actions** tab to monitor workflow runs.
+- Property positions on the map are **approximate** (suburb centroid with small offset) -- not exact street addresses
+- Bedroom and bathroom counts are **not available** from the VG data
+- The data pipeline filters for Greater Sydney postcodes and arm's-length residential/commercial sales only
+- To verify any individual sale, use the official [NSW VG Sales Enquiry](https://valuation.property.nsw.gov.au/embed/propertySalesInformation)
 
 ---
 
-## Data Sources
+## Built with AI
 
-| Source | Description | Update frequency |
-|--------|-------------|-----------------|
-| [NSW Valuer General – Bulk Property Sales](https://www.valuergeneral.nsw.gov.au/land_values/land_value_summaries/property-sales-information) | Official NSW government property transaction records | Quarterly (historical) |
-| [Domain.com.au](https://www.domain.com.au) | Current listings and property images (external link only) | Real-time |
+This entire project -- from concept to deployment -- was developed using **Claude Code** (Anthropic's AI coding agent). The process involved:
 
-> **Note:** NSW Valuer General data is provided under the [NSW Government Data Licence](https://www.digital.nsw.gov.au/policy/data-privacy/privacy-data-nsw-government/government-information-licence-and-open-data). Property records are public information.
+1. **Data pipeline design** - Claude analysed the NSW VG PSI .DAT file format (semicolon-delimited, multi-record type with A/B/C/D records) and built a Python pipeline to download, parse, filter, and transform the data
+2. **Frontend development** - React app with Leaflet maps, Recharts visualisation, responsive dark theme UI -- all generated through iterative conversation
+3. **CI/CD setup** - GitHub Actions workflows for automatic weekly data updates and GitHub Pages deployment
+4. **Debugging with real data** - Used actual .DAT file samples to verify column mapping, fix parsing bugs (record type prefix, yearly vs weekly file availability), and validate the full data pipeline
 
-### Data Fields
-
-Each property record contains:
-
-| Field | Description |
-|-------|-------------|
-| `address` | Street address (from NSW VG records) |
-| `suburb` | Suburb name |
-| `postcode` | NSW postcode |
-| `lat` / `lng` | Approximate coordinates (suburb centroid ± small offset) |
-| `price` | Contract sale price (AUD) |
-| `date` | Contract date |
-| `type` | House / Unit / Townhouse / Land |
-| `area` | Land/floor area (m²) where available |
-| `bedrooms` | Number of bedrooms where available |
-
----
-
-## Project Structure
-
-```
-sydney-house-prices/
-├── .github/
-│   └── workflows/
-│       ├── update-data.yml    # Daily data refresh (11am AEST)
-│       └── deploy.yml         # Build + deploy to GitHub Pages
-├── public/
-│   └── data/
-│       ├── properties.json    # Property sales (generated by scripts)
-│       └── suburbs.geojson    # Suburb boundary polygons
-├── scripts/
-│   ├── fetch_data.py          # Downloads & processes NSW VG data
-│   ├── generate_sample.py     # Generates sample data for development
-│   └── requirements.txt       # Python dependencies
-├── src/
-│   ├── components/
-│   │   ├── MapView.jsx        # Leaflet map with suburb polygons
-│   │   ├── FilterBar.jsx      # Property type / price / time filters
-│   │   ├── SuburbPanel.jsx    # Suburb detail sidebar
-│   │   ├── PriceChart.jsx     # Scatter chart with trend line
-│   │   └── PropertyList.jsx   # Paginated list of transactions
-│   ├── hooks/
-│   │   └── usePropertyData.js # Loads JSON data from public/data/
-│   ├── utils/
-│   │   ├── statistics.js      # Linear regression, median, etc.
-│   │   └── formatters.js      # Price & date formatting
-│   └── App.jsx
-├── index.html
-├── package.json
-└── vite.config.js             # ← Change base to your repo name!
-```
-
----
-
-## Configuration
-
-### Change the repo name in `vite.config.js`
-
-If your GitHub repo is named something other than `sydney-house-prices`, update:
-
-```js
-// vite.config.js
-export default defineConfig({
-  base: '/YOUR-REPO-NAME/',   // ← Change this
-  ...
-})
-```
-
-### Upgrade to Google Maps (optional)
-
-1. Get a Google Maps API key from [Google Cloud Console](https://console.cloud.google.com/)
-2. Install: `npm install @react-google-maps/api`
-3. Replace `MapView.jsx` with a Google Maps version
-4. Add your key as a GitHub Secret: `VITE_GOOGLE_MAPS_KEY`
-
----
-
-## Tech Stack
-
-| Tool | Purpose |
-|------|---------|
-| React 18 + Vite | Frontend framework |
-| Leaflet.js / react-leaflet | Interactive map |
-| Recharts | Price scatter chart + trend line |
-| GitHub Actions | Daily data updates + CI/CD |
-| GitHub Pages | Free static hosting |
-| Python | Data fetching & processing |
-
----
-
-## Contributing
-
-Pull requests welcome. Key areas for improvement:
-
-- Exact geocoding for individual addresses (consider caching via Nominatim)
-- Suburb boundary improvements (use ABS ASGS official boundaries)
-- More property attributes (bedrooms, car spaces)
-- Year-over-year comparison view
+The entire codebase was written, debugged, and refined through natural language prompts to Claude.
 
 ---
 
 ## Licence
 
-MIT — data is © NSW Valuer General, used under government open data licence.
+Data is provided by the NSW Valuer General under the [Creative Commons BY-NC-ND 4.0 Licence](https://creativecommons.org/licenses/by-nc-nd/4.0/) as part of the NSW Government Open Data Policy. Code is MIT licensed.

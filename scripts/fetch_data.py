@@ -375,14 +375,18 @@ FALLBACK_CENTROIDS = {
 
 
 def get_centroid_with_jitter(suburb_name):
-    """Get lat/lng for suburb with small random offset."""
+    """Get lat/lng for suburb with small random offset.
+
+    Jitter is kept small (~100m) to avoid placing coastal suburb
+    properties in the water.
+    """
     sub = suburb_name.upper().strip()
     centroid = SUBURB_CENTROIDS.get(sub) or FALLBACK_CENTROIDS.get(sub)
     if centroid:
         lat, lng = centroid
-        # Add small jitter so points don't all overlap
-        jitter_lat = random.uniform(-0.003, 0.003)
-        jitter_lng = random.uniform(-0.004, 0.004)
+        # Small jitter (~100m) so points don't overlap but stay on land
+        jitter_lat = random.uniform(-0.001, 0.001)
+        jitter_lng = random.uniform(-0.001, 0.001)
         return round(lat + jitter_lat, 6), round(lng + jitter_lng, 6)
     return None, None
 

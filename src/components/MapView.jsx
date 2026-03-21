@@ -405,11 +405,14 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
           />
         )}
 
-        {/* Suburb cluster dots — only shown when zoomed out (below property marker level) */}
-        {/* Uses CircleMarker (pixel-based) so dots stay a consistent visual size */}
-        {!showPropertyMarkers && suburbClusters.map(cluster => {
-          // Pixel radius: proportional to sqrt(count), clamped to reasonable range
-          const radius = Math.max(6, Math.min(18, 4 + Math.sqrt(cluster.count) * 1.5))
+        {/* Suburb cluster dots — visible at all zoom levels */}
+        {/* Radius adapts to zoom: larger when zoomed out, smaller when zoomed in */}
+        {suburbClusters.map(cluster => {
+          // Base radius from transaction count
+          const countRadius = Math.max(5, Math.min(14, 3 + Math.sqrt(cluster.count) * 1.2))
+          // Scale down as we zoom in so dots don't dominate over individual markers
+          const zoomScale = zoomLevel <= 12 ? 1 : Math.max(0.4, 1 - (zoomLevel - 12) * 0.12)
+          const radius = Math.round(countRadius * zoomScale)
           const isSelected = cluster.name === selectedSuburb?.toUpperCase()
           return (
             <CircleMarker
