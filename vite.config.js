@@ -1,12 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Change 'sydney-house-prices' to your actual GitHub repository name
-// e.g. if your repo is github.com/yourname/sydney-house-prices
-// then base should be '/sydney-house-prices/'
+// Use relative base so the app works regardless of deployment path
+// (works for any GitHub Pages repo name or custom domain)
 export default defineConfig({
   plugins: [react()],
-  base: '/sydney-house-prices/',
+  base: './',
   build: {
     outDir: 'dist',
     sourcemap: false,

@@ -48,9 +48,9 @@ export default function App() {
       {/* Header */}
       <header className="app-header">
         <div className="header-left">
-          <span className="header-logo">🏠</span>
-          <h1 className="header-title">Sydney House Prices</h1>
-          <span className="header-subtitle">NSW Property Sales Data</span>
+          <img src="./favicon.png" alt="logo" className="header-logo-img" width="28" height="28" />
+          <h1 className="header-title">Fiery-Golden-Eyes</h1>
+          <span className="header-subtitle">Sydney House Price</span>
         </div>
         <div className="header-right">
           {lastUpdated && (
