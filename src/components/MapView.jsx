@@ -424,6 +424,15 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
           maxZoom={19}
         />
 
+        {/* Rail/metro/light rail overlay — subtle so it doesn't distract */}
+        <TileLayer
+          url="https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"
+          attribution='<a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>'
+          subdomains="abc"
+          maxZoom={19}
+          opacity={0.4}
+        />
+
         {/* Suburb boundaries */}
         {suburbs?.features?.length > 0 && (
           <GeoJSON
@@ -432,11 +441,12 @@ export default function MapView({ properties, suburbs, filters, selectedSuburb, 
             data={suburbs}
             style={suburbStyle}
             onEachFeature={onEachSuburb}
+            pointToLayer={() => L.circleMarker([0, 0], { radius: 0, opacity: 0, fillOpacity: 0 })}
           />
         )}
 
-        {/* Suburb cluster dots — only show when not zoomed into individual markers */}
-        {zoomLevel < 15 && displayClusters.map(cluster => {
+        {/* Suburb cluster dots — hide when individual property markers are visible */}
+        {!showPropertyMarkers && displayClusters.map(cluster => {
           const countRadius = Math.max(5, Math.min(16, 3 + Math.sqrt(cluster.count) * 1.2))
           const zoomScale = zoomLevel <= 12 ? 1 : Math.max(0.4, 1 - (zoomLevel - 12) * 0.15)
           const radius = Math.round(countRadius * zoomScale)

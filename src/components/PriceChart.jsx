@@ -19,6 +19,7 @@ const TYPE_COLORS = {
   Unit: '#34d399',
   Townhouse: '#fbbf24',
   Land: '#a78bfa',
+  Commercial: '#f87171',
 }
 
 function CustomDot({ cx, cy, fill, payload }) {
