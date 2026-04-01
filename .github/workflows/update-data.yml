@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   update-data:
@@ -106,6 +107,7 @@ jobs:
           ls -lh public/data/suburbs.geojson || echo "MISSING"
 
       - name: Commit and push updated data
+        id: commit
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -117,7 +119,17 @@ jobs:
           # Only commit if there are changes
           if git diff --staged --quiet; then
             echo "No data changes detected, skipping commit."
+            echo "pushed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "chore: update property data [$(date -u '+%Y-%m-%d %H:%M UTC')]"
             git push
+            echo "pushed=true" >> $GITHUB_OUTPUT
           fi
+
+      # GITHUB_TOKEN pushes do NOT trigger other workflows (GitHub design).
+      # Explicitly trigger the deploy workflow so GitHub Pages gets updated.
+      - name: Trigger GitHub Pages deployment
+        if: steps.commit.outputs.pushed == 'true'
+        run: gh workflow run deploy.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
