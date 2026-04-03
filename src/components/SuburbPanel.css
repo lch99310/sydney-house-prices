@@ -313,6 +313,44 @@
   letter-spacing: 0;
 }
 
+/* Chart mode toggle */
+.chart-mode-toggle {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0;
+  margin-bottom: 8px;
+}
+
+.chart-mode-btn {
+  background: var(--bg-card, #1a1d27);
+  border: 1px solid var(--border, #2e3350);
+  color: var(--text-secondary, #9aa0b8);
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chart-mode-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.chart-mode-btn:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.chart-mode-btn.active {
+  background: var(--accent, #4f6ef7);
+  border-color: var(--accent, #4f6ef7);
+  color: #fff;
+  font-weight: 600;
+}
+
+.chart-mode-btn:hover:not(.active) {
+  background: #252840;
+}
+
 /* Chart legend */
 .chart-wrapper {
   width: 100%;

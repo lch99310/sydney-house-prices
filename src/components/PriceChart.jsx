@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   ScatterChart,
   Scatter,
@@ -37,10 +37,12 @@ function CustomDot({ cx, cy, fill, payload }) {
   )
 }
 
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, unitPrice }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
+
+  const pricePerSqm = d.area > 0 ? Math.round(d.price / d.area) : null
 
   return (
     <div style={{
@@ -55,7 +57,9 @@ function CustomTooltip({ active, payload }) {
       </div>
       <div style={{ color: TYPE_COLORS[d.type] || '#4f6ef7' }}>{d.type}</div>
       <div style={{ color: '#e8eaf0', fontSize: 14, fontWeight: 700, marginTop: 4 }}>
-        {formatPrice(d.price)}
+        {unitPrice && pricePerSqm != null
+          ? `$${pricePerSqm.toLocaleString()}/m²`
+          : formatPrice(d.price)}
       </div>
       <div style={{ color: '#9aa0b8', marginTop: 2 }}>{formatShortDate(d.date)}</div>
       {d.area > 0 && <div style={{ color: '#9aa0b8' }}>{d.area.toLocaleString()} m²</div>}
@@ -64,11 +68,20 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function PriceChart({ properties, filters }) {
+  const [unitPrice, setUnitPrice] = useState(false)
+
   // Convert dates to numeric (days since start)
   const chartData = useMemo(() => {
     if (!properties.length) return { points: [], trendLines: {}, dateRange: [null, null] }
 
-    const sorted = [...properties].sort((a, b) => new Date(a.date) - new Date(b.date))
+    // In unit price mode, only include properties with valid area
+    const filtered = unitPrice
+      ? properties.filter(p => p.area > 0)
+      : properties
+
+    if (!filtered.length) return { points: [], trendLines: {}, dateRange: [null, null] }
+
+    const sorted = [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date))
     const minDate = new Date(sorted[0].date).getTime()
     const maxDate = new Date(sorted[sorted.length - 1].date).getTime()
     const range = maxDate - minDate || 1
@@ -77,15 +90,18 @@ export default function PriceChart({ properties, filters }) {
       ...p,
       xNum: (new Date(p.date).getTime() - minDate) / (1000 * 60 * 60 * 24), // days
       timestamp: new Date(p.date).getTime(),
+      pricePerSqm: p.area > 0 ? Math.round(p.price / p.area) : null,
     }))
+
+    const getValue = (p) => unitPrice ? p.pricePerSqm : p.price
 
     // Trend line per visible type
     const trendLines = {}
     filters.types.forEach(type => {
-      const typePoints = points.filter(p => p.type === type)
+      const typePoints = points.filter(p => p.type === type && getValue(p) != null)
       if (typePoints.length < 2) return
       const xs = typePoints.map(p => p.xNum)
-      const ys = typePoints.map(p => p.price)
+      const ys = typePoints.map(p => getValue(p))
       const { slope, intercept } = linearRegression(xs, ys)
       const x0 = Math.min(...xs)
       const x1 = Math.max(...xs)
@@ -110,7 +126,7 @@ export default function PriceChart({ properties, filters }) {
         return d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' })
       },
     }
-  }, [properties, filters.types])
+  }, [properties, filters.types, unitPrice])
 
   if (!properties.length) {
     return (
@@ -133,8 +149,26 @@ export default function PriceChart({ properties, filters }) {
     return groups
   }, [chartData.points])
 
+  const yTickFormatter = unitPrice
+    ? (v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
+    : (v) => `$${(v / 1000000).toFixed(1)}M`
+
   return (
     <div className="chart-wrapper">
+      <div className="chart-mode-toggle">
+        <button
+          className={`chart-mode-btn ${!unitPrice ? 'active' : ''}`}
+          onClick={() => setUnitPrice(false)}
+        >
+          Total Price
+        </button>
+        <button
+          className={`chart-mode-btn ${unitPrice ? 'active' : ''}`}
+          onClick={() => setUnitPrice(true)}
+        >
+          $/m²
+        </button>
+      </div>
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart margin={{ top: 8, right: 12, bottom: 20, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e2235" vertical={false} />
@@ -154,14 +188,14 @@ export default function PriceChart({ properties, filters }) {
           <YAxis
             type="number"
             dataKey="y"
-            tickFormatter={v => `$${(v / 1000000).toFixed(1)}M`}
+            tickFormatter={yTickFormatter}
             tick={{ fill: '#555', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             width={52}
           />
 
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip unitPrice={unitPrice} />} />
 
           {/* Scatter points per type */}
           {filters.types.map(type => {
@@ -170,7 +204,11 @@ export default function PriceChart({ properties, filters }) {
               <Scatter
                 key={type}
                 name={type}
-                data={pts.map(p => ({ ...p, x: p.xNum, y: p.price }))}
+                data={pts.map(p => ({
+                  ...p,
+                  x: p.xNum,
+                  y: unitPrice ? p.pricePerSqm : p.price,
+                })).filter(p => p.y != null)}
                 fill={TYPE_COLORS[type] || '#4f6ef7'}
                 shape={<CustomDot fill={TYPE_COLORS[type] || '#4f6ef7'} />}
               />
